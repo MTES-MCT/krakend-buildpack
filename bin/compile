@@ -1,0 +1,52 @@
+#!/bin/bash
+# usage: bin/compile <build-dir> <cache-dir> <env-dir>
+
+set -eo pipefail
+
+BUILD_DIR=${1:-}
+CACHE_DIR=${2:-}
+ENV_DIR=${3:-}
+buildpack="$(cd -P "$(dirname "$0")" && pwd)"
+
+source "${buildpack}/common.sh"
+
+if [ -n "$BUILDPACK_DEBUG" ]; then
+  set -x
+fi
+
+KRAKEND_PATH="$BUILD_DIR/krakend"
+TMP_PATH="$BUILD_DIR/tmp"
+mkdir -p "${BUILD_DIR}/bin" "${CACHE_DIR}/dist" "${TMP_PATH}"
+export PATH="$BUILD_DIR/bin:$PATH"
+
+STACK="${STACK:-scalingo-24}"
+
+start "Install Krakend"
+
+if [[ -f "$ENV_DIR/KRAKEND_VERSION" ]]; then
+  KRAKEND_VERSION=$(cat "$ENV_DIR/KRAKEND_VERSION")
+else
+  KRAKEND_VERSION="latest"
+fi
+
+if [[ $KRAKEND_VERSION == "latest" ]]; then
+  KRAKEND_VERSION=$(fetch_github_latest_release "${TMP_PATH}" "krakend/krakend-ce")
+fi
+
+if [ ! -d "${KRAKEND_PATH}" ]; then
+  if [[ -n "${KRAKEND_VERSION}" ]]; then
+    fetch_krakend_dist "${KRAKEND_VERSION}" "${TMP_PATH}" | indent
+    mv "${TMP_PATH}/krakend-${KRAKEND_VERSION}" "${KRAKEND_PATH}"
+  fi
+else
+  warn "Krakend already installed"
+fi
+info "Using krakend version: ${KRAKEND_VERSION}" | indent
+
+step "Copying krakend.json config"
+cp "${BUILD_DIR}/krakend.json" "${KRAKEND_PATH}/krakend.json"
+
+step "Cleaning up tmp files"
+rm -rf "${TMP_PATH}"
+
+finished
