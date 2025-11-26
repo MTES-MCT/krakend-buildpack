@@ -3,7 +3,7 @@
 cat << EOF
 ---
 config_vars:
-  PATH: "/app/bin:/app/krakend:/usr/local/bin:/usr/bin:/bin"
+  PATH: "/app/krakend/bin:/usr/local/bin:/usr/bin:/bin"
 default_process_types:
-  web: /app/krakend/krakend run --config /app/krakend/krakend.json
+  web: /app/krakend/bin/krakend run --config /app/config/krakend.json
 EOF

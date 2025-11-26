@@ -39,21 +39,16 @@ function indent() {
   esac
 }
 
-function install_jq() {
-  if [[ -f "${ENV_DIR}/JQ_VERSION" ]]; then
-    JQ_VERSION=$(cat "${ENV_DIR}/JQ_VERSION")
-  else
-    JQ_VERSION=1.7.1
-  fi
-  step "Fetching jq $JQ_VERSION"
-  if [ -f "${CACHE_DIR}/dist/jq-$JQ_VERSION" ]; then
-    info "File already downloaded"
-  else
-    ${CURL} -o "${CACHE_DIR}/dist/jq-$JQ_VERSION" "https://github.com/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-linux64"
-  fi
-  cp "${CACHE_DIR}/dist/jq-$JQ_VERSION" "${BUILD_DIR}/bin/jq"
-  chmod +x "${BUILD_DIR}/bin/jq"
-  finished
+function read_version_github_json() {
+  local json_file="$1"
+  local latest_release_version
+  latest_release_version=""
+  latest_release_version=$(< "${json_file}" jq '.tag_name' | xargs)
+  latest_release_version="${latest_release_version%\"}"
+  latest_release_version="${latest_release_version#\"}"
+  # remove first character: 'v'
+  latest_release_version="${latest_release_version:1}"
+  echo "$latest_release_version"
 }
 
 function fetch_github_latest_release() {
@@ -74,21 +69,8 @@ function fetch_github_latest_release() {
   local latest_release_version
   latest_release_version=""
   if [[ $http_code == 200 ]]; then
-    latest_release_version=$(< "${TMP_PATH}/latest_release_${repo_checksum}.json" jq '.tag_name' | xargs)
-    latest_release_version="${latest_release_version%\"}"
-    latest_release_version="${latest_release_version#\"}"
+    latest_release_version=$(read_version_github_json "${TMP_PATH}/latest_release_${repo_checksum}.json")
   fi
-  echo "$latest_release_version"
-}
-
-function read_version_github_json() {
-  local json_file="$1"
-  local latest_release_version
-  latest_release_version=""
-  latest_release_version=$(< "${json_file}" jq '.tag_name' | xargs)
-  latest_release_version="${latest_release_version%\"}"
-  latest_release_version="${latest_release_version#\"}"
-
   echo "$latest_release_version"
 }
 
@@ -98,15 +80,14 @@ function fetch_krakend_dist() {
   local dist="krakend_${version}_amd64_generic-linux.tar.gz"
   local dist_url
   local download_url
-  local major_version
-  major_version="${version%.*}"
-  major_version="${major_version%.*}"
-  download_url="https://github.com/krakend/krakend-ce/releases/download/${version}"
+  local tag_name
+  tag_name="v${version}"
+  download_url="https://github.com/krakend/krakend-ce/releases/download/${tag_name}"
   dist_url=$(echo "${download_url}/${dist}" | xargs)
   dist_url="${dist_url%\"}"
   dist_url="${dist_url#\"}"
   local sha1_dist
-  sha1_dist=$(echo "${dist}.asc" | xargs)
+  sha1_dist=checksums.txt
   local sha1_url
   sha1_url=$(echo "${download_url}/${sha1_dist}" | xargs)
   sha1_url="${sha1_url%\"}"
@@ -117,18 +98,24 @@ function fetch_krakend_dist() {
   else
     ${CURL} -g -o "${CACHE_DIR}/dist/${dist}" "${dist_url}"
   fi
-  ${CURL} -g -o "${CACHE_DIR}/dist/${dist}.asc" "${sha1_url}"
+  ${CURL} -g -o "${CACHE_DIR}/dist/${sha1_dist}" "${sha1_url}"
   local file_checksum
   # https://www.krakend.io/docs/overview/verifying-packages/
-  file_checksum="$(shasum "${CACHE_DIR}/dist/${dist}" | cut -d \  -f 1)"
+  cd "${CACHE_DIR}/dist/" || exit
+  file_checksum="$(shasum --check --ignore-missing "${sha1_dist}" | cut -d : -f 2)"
   local checksum
-  checksum=$(cat "${CACHE_DIR}/dist/${dist}.asc")
+  checksum=" OK"
   if [ "$checksum" != "$file_checksum" ]; then
-    err "Kralend checksum file downloaded not valid"
+    err "Krakend checksum file downloaded not valid"
     exit 1
   else
-    info "Kralend checksum valid"
+    info "Krakend checksum valid"
   fi
-  tar xzf "$CACHE_DIR/dist/${dist}" -C "$location"
+  mkdir -p "${location}/krakend-${version}"
+  tar xzf "${dist}" -C "$location/krakend-${version}"
+  mv "$location/krakend-${version}/etc/krakend" "$location/krakend-${version}/config"
+  mv "$location/krakend-${version}/usr/bin" "$location/krakend-${version}/bin"
+  rm -rf "$location/krakend-${version}/etc"
+  rm -rf "$location/krakend-${version}/usr"
   finished
 }

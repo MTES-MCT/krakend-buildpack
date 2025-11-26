@@ -16,8 +16,7 @@ fi
 
 KRAKEND_PATH="$BUILD_DIR/krakend"
 TMP_PATH="$BUILD_DIR/tmp"
-mkdir -p "${BUILD_DIR}/bin" "${CACHE_DIR}/dist" "${TMP_PATH}"
-export PATH="$BUILD_DIR/bin:$PATH"
+mkdir -p "${CACHE_DIR}/dist" "${TMP_PATH}"
 
 STACK="${STACK:-scalingo-24}"
 
@@ -42,9 +41,6 @@ else
   warn "Krakend already installed"
 fi
 info "Using krakend version: ${KRAKEND_VERSION}" | indent
-
-step "Copying krakend.json config"
-cp "${BUILD_DIR}/krakend.json" "${KRAKEND_PATH}/krakend.json"
 
 step "Cleaning up tmp files"
 rm -rf "${TMP_PATH}"

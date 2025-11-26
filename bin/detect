@@ -1,49 +1,7 @@
-#!/usr/bin/env bash
-# bin/detect <build-dir>
+#!/bin/bash
 
-# Accept the Krakend buildpack if config file found
-if [ -f "$1/krakend.json" ]; then
-  echo 'Krakend'
-  exit 0
-fi
+# usage: bin/detect
+# Always accept Krakend
 
-if [[ -f "$1/.slugignore" ]] && grep -Fxq "krakend.json" "$1/.slugignore"; then
-  error << EOF
-'krakend.json' listed in '.slugignore' file
-
-The 'Krakend' buildpack is set on this application, but was
-unable to detect a 'krakend.json' file. This is likely because
-the '.slugignore' file is removing it before the build begins.
-
-For more information, refer to the following documentation:
-https://doc.scalingo.com/platform/app/slugignore
-EOF
-elif [[ -f "$1/.gitignore" ]] && grep -Fxq "krakend.json" "$1/.gitignore"; then
-  error << EOF
-'krakend.json' listed in '.gitignore' file
-
-The 'Krakend' buildpack is set on this application, but was
-unable to detect a 'krakend.json' file. This is likely because
-the '.gitignore' file is preventing it from being checked in to
-the git repo.
-EOF
-else
-  error <<- EOF
-Application not supported by 'Krakend' buildpack
-
-The 'Krakend' buildpack is set on this application, but was
-unable to detect a Krakend codebase.
-
-A Krakend app on Scalingo requires a 'krakend.json' at the root of
-the directory structure.
-
-If you are trying to deploy a Krakend application, ensure that this
-file is present at the top level directory. This directory has the
-following files:
-
-$(ls -1p "$1")
-
-EOF
-fi
-
-exit 1
+echo 'Krakend'
+exit 0

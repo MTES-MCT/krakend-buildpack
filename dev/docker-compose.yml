@@ -10,15 +10,16 @@ services:
             - ./postgresql/init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh:ro
     keycloak:
         image: keycloak/keycloak
+        command: ["start-dev"]
         env_file: .env
         ports: 
             - 8080:8080
         depends_on:
             - postgres
     krakend:
-        build: .
+        build: ../.
         volumes: 
-            - .:/buildpack
+            - ../.:/buildpack
             - cache:/cache
             - build:/build
             - env:/env
@@ -29,9 +30,7 @@ services:
         depends_on:
             - keycloak
     nginx:
-        image: owasp/modsecurity-crs
-        volumes:
-            - "./nginx/:/etc/nginx/conf.d/"
+        image: owasp/modsecurity-crs:nginx
         env_file: .env
         ports: 
             - 80:80
